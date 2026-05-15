@@ -1,0 +1,48 @@
+* { font-family: 'DM Sans', sans-serif; box-sizing: border-box; }
+.mono { font-family: 'DM Mono', monospace; }
+
+.row-hover:hover { background-color: #f8fafc; }
+.row-hover:hover .row-actions { opacity: 1; }
+.row-actions { opacity: 0; transition: opacity 0.15s; }
+
+.sidebar-link { transition: background 0.12s, color 0.12s; }
+.sidebar-link:hover { background: #f1f5f9; }
+.sidebar-link.active { background: #eff6ff; color: #2563eb; }
+.sidebar-link.active svg { color: #2563eb; }
+
+.check-row { accent-color: #2563eb; }
+tr.selected { background: #eff6ff !important; }
+
+.attachment-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    background: #f1f5f9; border: 1px solid #e2e8f0;
+    font-size: 11px; color: #475569; text-decoration: none;
+    max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.attachment-pill:hover { background: #e2e8f0; }
+
+@media (max-width: 767px) {
+    .flex.h-screen { flex-direction: column; }
+    aside.w-64 { width: 100% !important; flex-shrink: 0; border-right: none; border-bottom: 1px solid #e2e8f0; flex-direction: row; height: auto; }
+    aside.w-64 nav, aside.w-64 > div:last-child { display: none !important; }
+    aside.w-64 > div:first-child { width: 100%; padding: 10px 16px; justify-content: space-between; }
+    main.flex-1 { overflow: hidden; }
+    main .text-2xl { font-size: 1.1rem; }
+    #searchInput { width: 100% !important; }
+    main > div.flex.items-center.gap-3 { flex-wrap: wrap; }
+    #emailTable thead th:nth-child(4), #emailTable tbody td:nth-child(4) { display: none; }
+    #emailTable thead th:nth-child(2), #emailTable tbody td:nth-child(2) { width: 120px; }
+    dialog { padding: 0 !important; }
+    dialog > div { min-height: 100vh !important; align-items: flex-end !important; padding: 0 !important; }
+    dialog > div > div { border-radius: 20px 20px 0 0 !important; max-width: 100% !important; width: 100% !important; }
+    .fixed.bottom-7.right-7 { bottom: 16px; right: 16px; padding: 10px 16px; font-size: 13px; }
+    #bulkBar { flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
+    #weatherBox > div { font-size: 11px !important; }
+    #messageThread { padding: 12px !important; }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    aside.w-64 { width: 200px !important; }
+    #searchInput { width: 180px !important; }
+}
