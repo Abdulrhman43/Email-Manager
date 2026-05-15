@@ -167,12 +167,42 @@ class EmailController extends Controller
             'chat_id'    => $chat->id,
             'sender_id'  => $user->id,
             'subject'    => $subject,
-            'message'    => $request->message,
+            'message'    => $request->message ?? '',
             'attachment' => $attachment,
         ]);
 
         return response()->json(['message' => 'Reply added', 'attachment' => $attachment]);
     }
+
+    public function upload(Request $request)
+{
+    $request->validate([
+        'attachment' => ['required', 'file', 'mimes:jpg,jpeg,png,gif,pdf', 'max:5120'],
+    ]);
+
+    try {
+        $file     = $request->file('attachment');
+        $filename = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
+
+        $uploadPath = public_path('uploads');
+        if (!file_exists($uploadPath)) {
+            mkdir($uploadPath, 0755, true);
+        }
+
+        $file->move($uploadPath, $filename);
+
+        return response()->json([
+            'success'  => true,
+            'filename' => $filename,
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error'   => $e->getMessage(),  // ← now you'll see the real error
+        ], 500);
+    }
+}
 
     // ── DESTROY — delete a chat and all its emails ────────────────────────────
     public function destroy(Chat $chat)

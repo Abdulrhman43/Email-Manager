@@ -1,9 +1,9 @@
 let selectedRows = new Set();
-const messageMap  = new Map();
-const threadMap   = new Map();
+const messageMap = new Map();
+const threadMap = new Map();
 
 let activeMessageId = null;
-let activeThreadId  = null;
+let activeThreadId = null;
 
 // ── Read routes from window.routes (set in Blade) ────────────────────────────
 const ROUTES = window.routes || {};
@@ -15,18 +15,18 @@ const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 function escapeHtml(text) {
     return String(text || '')
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function buildInitials(name) {
     return String(name || '').split(' ').filter(Boolean)
-        .slice(0,2).map(p => p[0]).join('').toUpperCase() || '?';
+        .slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
 }
 
 function renderPreview(body) {
     const t = String(body || '');
-    return t.length > 60 ? t.slice(0,60) + '...' : t;
+    return t.length > 60 ? t.slice(0, 60) + '...' : t;
 }
 
 // ========================= FILE PREVIEW =========================
@@ -37,7 +37,7 @@ function previewAttachment(input, previewId) {
     const file = input.files[0];
     if (!file) { el.innerHTML = ''; return; }
 
-    const allowed = ['image/jpeg','image/png','image/gif','application/pdf'];
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
     if (!allowed.includes(file.type)) {
         el.innerHTML = '<span class="text-red-500">Invalid file type. Allowed: JPG, PNG, GIF, PDF.</span>';
         input.value = ''; return;
@@ -57,15 +57,25 @@ async function uploadFile(fileInput) {
     const formData = new FormData();
     formData.append('attachment', fileInput.files[0]);
 
-    const res  = await fetch(ROUTES.upload || '/upload', {
-        method : 'POST',
-        headers: { 'X-CSRF-TOKEN': CSRF },
-        body   : formData
-    });
-    const data = await res.json();
+    try {
+        const res = await fetch(ROUTES.upload || '/upload', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF },
+            body: formData,
+        });
 
-    if (!data.success) { alert('Upload error: ' + data.error); return null; }
-    return data.filename;
+        const data = await res.json();
+
+        if (!data.success) {
+            alert('Upload error: ' + (data.error || 'Unknown error'));
+            return null;
+        }
+        return data.filename;
+
+    } catch (err) {
+        alert('Upload failed: ' + err.message);
+        return null;
+    }
 }
 
 // ========================= ATTACHMENT HTML =========================
@@ -75,7 +85,7 @@ function attachmentHtml(filename) {
     const safeName = String(filename).split('/').pop();
     const url = (window.uploadsUrl || 'uploads/') + encodeURIComponent(safeName);
     const ext = safeName.split('.').pop().toLowerCase();
-    const isImage = ['jpg','jpeg','png','gif'].includes(ext);
+    const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(ext);
 
     if (isImage) {
         return `<a href="${url}" target="_blank" class="block mt-3">
@@ -92,10 +102,10 @@ function attachmentHtml(filename) {
 // ========================= FILTER =========================
 
 function updateFilteredView() {
-    const rows    = Array.from(document.querySelectorAll('#emailBody tr'));
+    const rows = Array.from(document.querySelectorAll('#emailBody tr'));
     const visible = rows.filter(r => r.style.display !== 'none');
-    const empty   = document.getElementById('emptyState');
-    const count   = document.getElementById('conv-count');
+    const empty = document.getElementById('emptyState');
+    const count = document.getElementById('conv-count');
     if (empty) empty.classList.toggle('hidden', visible.length > 0);
     if (count) count.textContent = `${visible.length} message${visible.length !== 1 ? 's' : ''}`;
 }
@@ -104,9 +114,9 @@ function filterTable() {
     const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
     document.querySelectorAll('#emailBody tr').forEach(row => {
         const match = !search
-            || (row.dataset.from    || '').includes(search)
+            || (row.dataset.from || '').includes(search)
             || (row.dataset.subject || '').includes(search)
-            || (row.dataset.body    || '').includes(search);
+            || (row.dataset.body || '').includes(search);
         row.style.display = match ? '' : 'none';
     });
     updateFilteredView();
@@ -140,12 +150,12 @@ function clearSelection() {
 }
 
 function updateBulkBar() {
-    const bar   = document.getElementById('bulkBar');
+    const bar = document.getElementById('bulkBar');
     const count = document.getElementById('bulkCount');
     if (!bar || !count) return;
     count.textContent = `${selectedRows.size} selected`;
     bar.classList.toggle('hidden', selectedRows.size === 0);
-    bar.classList.toggle('flex',   selectedRows.size > 0);
+    bar.classList.toggle('flex', selectedRows.size > 0);
 }
 
 function updateInboxBadge(count) {
@@ -161,8 +171,8 @@ function renderThreadMessages(message) {
     const threadEl = document.getElementById('messageThread');
     if (!threadEl) return;
 
-    const thread       = Array.isArray(message.thread) ? message.thread : [];
-    const isSentRoot   = (message.type || 'received') === 'sent';
+    const thread = Array.isArray(message.thread) ? message.thread : [];
+    const isSentRoot = (message.type || 'received') === 'sent';
     const externalName = isSentRoot ? (message.to || 'Recipient') : (message.from || 'Sender');
 
     if (thread.length === 0) {
@@ -171,13 +181,13 @@ function renderThreadMessages(message) {
     }
 
     threadEl.innerHTML = thread.map(msg => {
-        const fromName    = msg.from || 'Unknown';
-        const isMine      = fromName.toLowerCase() === 'you' || fromName.toLowerCase() === 'me'
-                         || fromName.toLowerCase() !== externalName.toLowerCase();
-        const alignClass  = isMine ? 'justify-end'  : 'justify-start';
+        const fromName = msg.from || 'Unknown';
+        const isMine = fromName.toLowerCase() === 'you' || fromName.toLowerCase() === 'me'
+            || fromName.toLowerCase() !== externalName.toLowerCase();
+        const alignClass = isMine ? 'justify-end' : 'justify-start';
         const bubbleStyle = isMine ? 'border-blue-200 bg-blue-50' : 'border-slate-200 bg-white';
-        const avatarStyle = isMine ? 'bg-slate-900 text-white'   : 'bg-white border border-slate-200 text-slate-600';
-        const label       = isMine ? 'You' : fromName;
+        const avatarStyle = isMine ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600';
+        const label = isMine ? 'You' : fromName;
 
         return `
         <div class="flex ${alignClass}">
@@ -207,17 +217,17 @@ function handleRowClick(e, messageId) {
 
 function openMessageModal(messageId) {
     const message = messageMap.get(String(messageId));
-    const dialog  = document.getElementById('messageDialog');
+    const dialog = document.getElementById('messageDialog');
     if (!message || !dialog) return;
 
     activeMessageId = String(messageId);
-    activeThreadId  = message.threadId;
+    activeThreadId = message.threadId;
 
     document.getElementById('messageDialogTitle').textContent = message.subject || 'Message';
 
     const isSent = (message.type || 'received') === 'sent';
-    const meta   = document.getElementById('messageDialogMeta');
-    const subMeta= document.getElementById('messageDialogSubMeta');
+    const meta = document.getElementById('messageDialogMeta');
+    const subMeta = document.getElementById('messageDialogSubMeta');
     if (meta) meta.textContent = `${isSent ? 'To' : 'From'} ${isSent ? message.to : message.from} · ${isSent ? message.toEmail : message.fromEmail}`;
     if (subMeta) {
         const c = Array.isArray(message.thread) ? message.thread.length : 0;
@@ -255,85 +265,67 @@ function setActive(el) {
 
 // ========================= RENDER EMAILS =========================
 
+// Replace the entire renderEmails() function in app.js
+
 function renderEmails(emails) {
-    const tbody       = document.getElementById('emailBody');
-    const avatarColors= ['bg-violet-100 text-violet-700','bg-blue-100 text-blue-700',
-                          'bg-rose-100 text-rose-700','bg-teal-100 text-teal-700',
-                          'bg-amber-100 text-amber-700','bg-emerald-100 text-emerald-700'];
+    const tbody = document.getElementById('emailBody');
+    const avatarColors = ['bg-violet-100 text-violet-700', 'bg-blue-100 text-blue-700',
+        'bg-rose-100 text-rose-700', 'bg-teal-100 text-teal-700',
+        'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700'];
 
     messageMap.clear();
     threadMap.clear();
-
-    const seen  = new Set();
-    const chats = [];
-    emails.forEach(e => {
-        if (!seen.has(e.chat_id)) { seen.add(e.chat_id); chats.push(e); }
-        if (!threadMap.has(e.chat_id)) threadMap.set(e.chat_id, []);
-        threadMap.get(e.chat_id).push(e);
-    });
-
     tbody.innerHTML = '';
 
-    chats.forEach((email, index) => {
-        const avatarClass  = avatarColors[index % avatarColors.length];
-        const isSent       = email.sender_email === window.userEmail;
-        const contactName  = isSent ? (email.recipient_name  || 'Recipient') : (email.sender_name  || 'Unknown');
-        const contactEmail = isSent ? (email.recipient_email || '')           : (email.sender_email || '');
-        const initials     = buildInitials(contactName);
+    emails.forEach((message, index) => {
+        const avatarClass = avatarColors[index % avatarColors.length];
+        const isSent = (message.type || 'received') === 'sent';
+        const contactName = isSent ? (message.to ?? '') : (message.from ?? '');
+        const contactEmail = isSent ? (message.toEmail ?? '') : (message.fromEmail ?? '');
+        const contactInitials = isSent ? (message.toInitials ?? '') : (message.fromInitials ?? '');
+        const previewBody = (message.body.length > 60)
+            ? message.body.slice(0, 60) + '...'
+            : message.body;
 
-        const threadMessages = (threadMap.get(email.chat_id) || [])
-            .sort((a,b) => new Date(a.sent_at) - new Date(b.sent_at))
-            .map(msg => ({
-                from      : msg.sender_email === window.userEmail ? 'You' : (msg.sender_name || 'Unknown'),
-                body      : msg.message || '',
-                time      : msg.sent_at || '',
-                attachment: msg.attachment || null
-            }));
-
-        const msgObj = {
-            messageId : String(email.id),
-            threadId  : email.chat_id,
-            type      : isSent ? 'sent' : 'received',
-            from      : isSent ? 'You' : (email.sender_name || 'Unknown'),
-            fromEmail : email.sender_email || '',
-            to        : contactName,
-            toEmail   : contactEmail,
-            subject   : email.subject || '',
-            body      : email.message || '',
-            time      : email.sent_at || '',
-            thread    : threadMessages,
-        };
-        messageMap.set(String(email.id), msgObj);
+        // Store in messageMap keyed by messageId (string)
+        messageMap.set(String(message.messageId), message);
 
         tbody.insertAdjacentHTML('beforeend', `
         <tr class="row-hover border-b border-slate-100 cursor-pointer hover:bg-slate-50"
-            data-id="${escapeHtml(String(email.id))}"
-            data-thread-id="${escapeHtml(String(email.chat_id))}"
-            data-subject="${escapeHtml((email.subject||'').toLowerCase())}"
+            data-id="${escapeHtml(String(message.messageId))}"
+            data-thread-id="${escapeHtml(String(message.threadId))}"
+            data-subject="${escapeHtml((message.subject || '').toLowerCase())}"
             data-from="${escapeHtml(contactName.toLowerCase())}"
-            data-body="${escapeHtml((email.message||'').toLowerCase())}"
-            onclick="handleRowClick(event,'${escapeHtml(String(email.id))}')">
+            data-body="${escapeHtml((message.body || '').toLowerCase())}"
+            onclick="handleRowClick(event,'${escapeHtml(String(message.messageId))}')">
+
             <td class="px-4 py-4 w-10" onclick="event.stopPropagation()">
-                <input type="checkbox" class="check-row rounded" onchange="toggleRow('${escapeHtml(String(email.id))}',this)">
+                <input type="checkbox" class="check-row rounded"
+                    onchange="toggleRow('${escapeHtml(String(message.messageId))}', this)">
             </td>
+
             <td class="px-4 py-4 w-40">
                 <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${avatarClass}">${escapeHtml(initials)}</div>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${avatarClass}">
+                        ${escapeHtml(contactInitials)}
+                    </div>
                     <div class="min-w-0">
                         <span class="font-medium text-slate-800 text-sm truncate block">${escapeHtml(contactName)}</span>
                         <div class="text-xs text-slate-400 truncate">${escapeHtml(contactEmail)}</div>
                     </div>
                 </div>
             </td>
+
             <td class="px-4 py-4 flex-1">
-                <div class="font-medium text-sm truncate mb-1">${escapeHtml(email.subject||'')}</div>
+                <div class="font-medium text-slate-800 text-sm truncate mb-1">${escapeHtml(message.subject || '')}</div>
                 <div class="text-sm text-slate-600 truncate">
-                    <span class="text-slate-400">${escapeHtml(isSent ? 'You' : email.sender_name)}: </span>
-                    ${escapeHtml(renderPreview(email.message||''))}
+                    ${isSent ? '<span class="text-slate-400 font-medium">You: </span>' : ''}
+                    ${escapeHtml(previewBody)}
                 </div>
             </td>
+
             <td class="px-4 py-4 w-24">
-                <span class="text-xs text-slate-400">${escapeHtml(email.sent_at||'')}</span>
+                <span class="text-xs text-slate-400">${escapeHtml(message.time || '')}</span>
             </td>
         </tr>`);
     });
@@ -341,23 +333,23 @@ function renderEmails(emails) {
     selectedRows.clear();
     updateFilteredView();
     updateBulkBar();
-    updateInboxBadge(chats.length);
+    updateInboxBadge(emails.length);
 }
 
 async function reloadEmails() {
-    const res    = await fetch(ROUTES.read || '/emails');
+    const res = await fetch(ROUTES.read || '/emails');
     const emails = await res.json();
     renderEmails(emails);
 }
 
 // ========================= COMPOSE =========================
 
-document.getElementById('composeForm')?.addEventListener('submit', async function(e) {
+document.getElementById('composeForm')?.addEventListener('submit', async function (e) {
     e.preventDefault();
 
-    const toEmail   = document.getElementById('composeEmail').value.trim();
-    const subject   = document.getElementById('composeSubject').value.trim();
-    const body      = document.getElementById('composeBody').value.trim();
+    const toEmail = document.getElementById('composeEmail').value.trim();
+    const subject = document.getElementById('composeSubject').value.trim();
+    const body = document.getElementById('composeBody').value.trim();
     const fileInput = document.getElementById('composeFile');
 
     if (!toEmail || !subject || !body) { alert('Please fill in all required fields.'); return; }
@@ -369,10 +361,11 @@ document.getElementById('composeForm')?.addEventListener('submit', async functio
         if (attachment === null) return;
     }
 
-    const res  = await fetch(ROUTES.store || '/emails', {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-        body   : JSON.stringify({ composeEmail: toEmail, composeSubject: subject, composeBody: body, attachment })
+    const res = await fetch(ROUTES.store || '/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', },
+        body: JSON.stringify({ composeEmail: toEmail, composeSubject: subject, composeBody: body, attachment }),
+        redirect: 'manual',
     });
     const data = await res.json();
 
@@ -394,26 +387,52 @@ async function sendReply(event) {
     if (!input || !activeThreadId) return;
 
     const messageBody = input.value.trim();
-    if (!messageBody && !fileInput?.files[0]) { alert('Write a reply or attach a file.'); return; }
 
+    // Upload first, then check
     let attachment = null;
     if (fileInput?.files[0]) {
         attachment = await uploadFile(fileInput);
         if (attachment === null) return;
     }
 
-    const res  = await fetch(`${ROUTES.reply || '/emails'}/${activeThreadId}/reply`, {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
-        body   : JSON.stringify({ message: messageBody, attachment })
-    });
-    const data = await res.json();
+    if (!messageBody && !attachment) {
+        alert('Write a reply or attach a file.');
+        return;
+    }
 
+    const res = await fetch(`${ROUTES.reply || '/emails'}/${activeThreadId}/reply`, {
+        method  : 'POST',
+        headers : {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': CSRF,
+            'Accept'      : 'application/json',  // ← forces JSON response not redirect
+        },
+        body    : JSON.stringify({ message: messageBody || '', attachment }),
+        redirect: 'manual',                       // ← don't follow 302s
+    });
+
+    if (res.type === 'opaqueredirect' || res.status === 302) {
+        window.location.reload();
+        return;
+    }
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        alert(err?.message || 'Failed to send reply.');
+        return;
+    }
+
+    const data = await res.json();
     if (data.message !== 'Reply added') { alert(data.message); return; }
 
     const current = messageMap.get(String(activeMessageId));
     if (current) {
-        current.thread.push({ from: 'You', body: messageBody, time: new Date().toLocaleString(), attachment });
+        current.thread.push({
+            from      : 'You',
+            body      : messageBody || '',
+            time      : new Date().toLocaleString(),
+            attachment: attachment,
+        });
         renderThreadMessages(current);
     }
 
@@ -437,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const msg = messageMap.get(String(id));
             if (!msg) continue;
             await fetch(`${ROUTES.destroy || '/emails'}/${msg.threadId}`, {
-                method : 'DELETE',
+                method: 'DELETE',
                 headers: { 'X-CSRF-TOKEN': CSRF }
             });
         }

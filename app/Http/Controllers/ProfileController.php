@@ -14,11 +14,13 @@ class ProfileController extends Controller
     /**
      * Display the user's profile form.
      */
-    public function edit(Request $request): View
+   public function edit(Request $request): View
     {
-        return view('profile.edit', [
-            'user' => $request->user(),
-        ]);
+    return view('profile.edit', [
+        'user'   => $request->user(),
+        'chats'  => [],   // pass empty array so header count() doesn't crash
+        'emails' => [],   // add whichever variables your header uses
+    ]);
     }
 
     /**

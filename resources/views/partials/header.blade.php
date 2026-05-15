@@ -17,8 +17,8 @@
             </svg>
             Inbox
             <span id="inboxBadge"
-                class="ml-auto bg-blue-600 text-white text-[10px] font-semibold mono px-1.5 py-0.5 rounded-full {{ count($emails) === 0 ? 'hidden' : '' }}">
-                {{ count($emails) }}
+                class="ml-auto bg-blue-600 text-white text-[10px] font-semibold mono px-1.5 py-0.5 rounded-full {{ count($emails ?? []) === 0 ? 'hidden' : '' }}">
+                {{ count($emails ?? []) }}
             </span>
         </a>
     </nav>

@@ -14,17 +14,19 @@ class StoreReplyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message'    => ['required', 'string'],
-            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,pdf', 'max:5120'],
+            // Message is required only if no attachment is provided
+            'message'    => ['nullable', 'string'],
+            'attachment' => ['nullable', 'string'], 
         ];
     }
 
     public function messages(): array
     {
         return [
-            'message.required'  => 'Reply message is required.',
-            'attachment.mimes'  => 'Only JPG, PNG, GIF and PDF files are allowed.',
-            'attachment.max'    => 'Attachment must not exceed 5 MB.',
+            'message.required_without'    => 'Please write a message or attach a file.',
+            'attachment.required_without'  => 'Please write a message or attach a file.',
+            'attachment.mimes'             => 'Only JPG, PNG, GIF and PDF files are allowed.',
+            'attachment.max'               => 'Attachment must not exceed 5 MB.',
         ];
     }
 }

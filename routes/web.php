@@ -3,10 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\WeatherController;
+use App\Http\Controllers\ProfileController;
 
 // ── Public routes (no login needed) ─────────────────────────────────────────
 Route::get('/', function () {
-    return redirect()->route('inbox');
+    return redirect()->route('login');
 });
 
 // ── Protected routes (must be logged in) ────────────────────────────────────
@@ -32,7 +33,14 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('/upload', [EmailController::class, 'upload'])->name('upload.store');
 
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::get('/dashboard', function () {
+    return redirect('/inbox');
+})->middleware(['auth'])->name('dashboard');
 
 // ── Breeze auth routes (login, register, logout) ─────────────────────────────
 require __DIR__.'/auth.php';
