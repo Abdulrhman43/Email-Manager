@@ -64,12 +64,19 @@ async function uploadFile(fileInput) {
             body: formData,
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            const message = data.error || data.message || `Upload failed with status ${res.status}`;
+            alert(message);
+            return null;
+        }
 
         if (!data.success) {
             alert('Upload error: ' + (data.error || 'Unknown error'));
             return null;
         }
+
         return data.filename;
 
     } catch (err) {
@@ -287,8 +294,9 @@ function renderEmails(emails) {
             ? message.body.slice(0, 60) + '...'
             : message.body;
 
-        // Store in messageMap keyed by messageId (string)
+        // Store in messageMap keyed by messageId and threadMap keyed by threadId
         messageMap.set(String(message.messageId), message);
+        threadMap.set(String(message.threadId), message);
 
         tbody.insertAdjacentHTML('beforeend', `
         <tr class="row-hover border-b border-slate-100 cursor-pointer hover:bg-slate-50"
@@ -340,6 +348,16 @@ async function reloadEmails() {
     const res = await fetch(ROUTES.read || '/emails');
     const emails = await res.json();
     renderEmails(emails);
+
+    if (activeThreadId) {
+        const updated = threadMap.get(String(activeThreadId));
+        if (updated) {
+            activeMessageId = String(updated.messageId);
+            if (document.getElementById('messageDialog')?.open) {
+                renderThreadMessages(updated);
+            }
+        }
+    }
 }
 
 // ========================= COMPOSE =========================
@@ -382,7 +400,7 @@ document.getElementById('composeForm')?.addEventListener('submit', async functio
 async function sendReply(event) {
     event.preventDefault();
 
-    const input     = document.getElementById('replyInput');
+    const input = document.getElementById('replyInput');
     const fileInput = document.getElementById('replyFile');
     if (!input || !activeThreadId) return;
 
@@ -401,13 +419,13 @@ async function sendReply(event) {
     }
 
     const res = await fetch(`${ROUTES.reply || '/emails'}/${activeThreadId}/reply`, {
-        method  : 'POST',
-        headers : {
+        method: 'POST',
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': CSRF,
-            'Accept'      : 'application/json',  // ← forces JSON response not redirect
+            'Accept': 'application/json',  // ← forces JSON response not redirect
         },
-        body    : JSON.stringify({ message: messageBody || '', attachment }),
+        body: JSON.stringify({ message: messageBody || '', attachment }),
         redirect: 'manual',                       // ← don't follow 302s
     });
 
@@ -425,12 +443,16 @@ async function sendReply(event) {
     const data = await res.json();
     if (data.message !== 'Reply added') { alert(data.message); return; }
 
-    const current = messageMap.get(String(activeMessageId));
+    let current = messageMap.get(String(activeMessageId));
+    if (!current && activeThreadId) {
+        current = threadMap.get(String(activeThreadId));
+    }
+
     if (current) {
         current.thread.push({
-            from      : 'You',
-            body      : messageBody || '',
-            time      : new Date().toLocaleString(),
+            from: 'You',
+            body: messageBody || '',
+            time: new Date().toLocaleString(),
             attachment: attachment,
         });
         renderThreadMessages(current);

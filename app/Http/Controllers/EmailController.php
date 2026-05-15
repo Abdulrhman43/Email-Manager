@@ -71,37 +71,54 @@ class EmailController extends Controller
     // ── READ — return all emails as JSON (used by AJAX) ───────────────────────
     public function read()
     {
-        $user_id = Auth::id();
+        $user      = Auth::user();
+        $user_id   = $user->id;
 
         $chats = Chat::with(['user1', 'user2', 'emails.sender'])
             ->where('user1_id', $user_id)
             ->orWhere('user2_id', $user_id)
             ->get();
 
-        $data = [];
+        $emails = [];
 
         foreach ($chats as $chat) {
-            foreach ($chat->emails as $email) {
-                $other = $chat->otherUser($user_id);
-                $data[] = [
-                    'id'             => $email->id,
-                    'chat_id'        => $chat->id,
-                    'subject'        => $email->subject,
-                    'message'        => $email->message,
-                    'attachment'     => $email->attachment,
-                    'sent_at'        => $email->created_at->format('Y-m-d H:i:s'),
-                    'sender_name'    => $email->sender->name,
-                    'sender_email'   => $email->sender->email,
-                    'recipient_name' => $other->name,
-                    'recipient_email'=> $other->email,
+            $allEmails = $chat->emails;
+            if ($allEmails->isEmpty()) continue;
+
+            $latestEmail = $allEmails->last();
+            $isSent      = $latestEmail->sender_id === $user_id;
+            $other       = $chat->otherUser($user_id);
+
+            $thread = $allEmails->map(function ($msg) use ($user_id) {
+                return [
+                    'from'       => $msg->sender_id === $user_id ? 'You' : $msg->sender->name,
+                    'body'       => $msg->message,
+                    'time'       => $msg->created_at->format('M d, h:i A'),
+                    'attachment' => $msg->attachment,
                 ];
-            }
+            })->values()->toArray();
+
+            $emails[] = [
+                'messageId'    => $latestEmail->id,
+                'threadId'     => $chat->id,
+                'type'         => $isSent ? 'sent' : 'received',
+                'from'         => $isSent ? $user->name  : $other->name,
+                'fromEmail'    => $isSent ? $user->email : $other->email,
+                'fromInitials' => $this->initials($isSent ? $user->name : $other->name),
+                'to'           => $isSent ? $other->name  : $user->name,
+                'toEmail'      => $isSent ? $other->email : $user->email,
+                'toInitials'   => $this->initials($isSent ? $other->name : $user->name),
+                'subject'      => $latestEmail->subject,
+                'body'         => $latestEmail->message,
+                'time'         => $latestEmail->created_at->format('M d, h:i A'),
+                'status'       => 'New',
+                'thread'       => $thread,
+            ];
         }
 
-        // Sort newest first
-        usort($data, fn($a, $b) => strcmp($b['sent_at'], $a['sent_at']));
+        usort($emails, fn($a, $b) => strcmp($b['time'], $a['time']));
 
-        return response()->json($data);
+        return response()->json($emails);
     }
 
     // ── STORE — compose and send a new email ─────────────────────────────────
@@ -111,12 +128,14 @@ class EmailController extends Controller
         $receiver   = User::where('email', $request->composeEmail)->first();
         $attachment = null;
 
-        // Handle file upload
+        // Handle file upload or already-uploaded filename
         if ($request->hasFile('attachment')) {
             $file       = $request->file('attachment');
             $filename   = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads'), $filename);
             $attachment = $filename;
+        } elseif (is_string($request->attachment) && $request->attachment !== '') {
+            $attachment = $request->attachment;
         }
 
         // Create chat
@@ -152,12 +171,14 @@ class EmailController extends Controller
 
         $attachment = null;
 
-        // Handle file upload
+        // Handle file upload or already-uploaded filename
         if ($request->hasFile('attachment')) {
             $file       = $request->file('attachment');
             $filename   = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads'), $filename);
             $attachment = $filename;
+        } elseif (is_string($request->attachment) && $request->attachment !== '') {
+            $attachment = $request->attachment;
         }
 
         // Get subject from first email in chat

@@ -15,8 +15,8 @@ class StoreReplyRequest extends FormRequest
     {
         return [
             // Message is required only if no attachment is provided
-            'message'    => ['nullable', 'string'],
-            'attachment' => ['nullable', 'string'], 
+            'message'    => ['nullable', 'string', 'required_without:attachment'],
+            'attachment' => ['nullable', 'string', 'required_without:message', 'max:255'],
         ];
     }
 

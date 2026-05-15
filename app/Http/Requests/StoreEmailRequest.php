@@ -17,7 +17,7 @@ class StoreEmailRequest extends FormRequest
             'composeEmail'   => ['required', 'email', 'exists:users,email'],
             'composeSubject' => ['required', 'string', 'max:255'],
             'composeBody'    => ['required', 'string'],
-            'attachment'     => ['nullable', 'string'],
+            'attachment'     => ['nullable', 'string', 'max:255'],
         ];
     }
 
