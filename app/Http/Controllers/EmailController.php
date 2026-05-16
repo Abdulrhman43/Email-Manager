@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Chat;
 use App\Models\Email;
 use App\Models\User;
-use App\Events\EmailSent;                          // ← NEW
+use App\Events\NewEmailReceived;                        // ← NEW
 use App\Http\Requests\StoreEmailRequest;
 use App\Http\Requests\StoreReplyRequest;
 use Illuminate\Http\Request;
@@ -148,12 +148,11 @@ class EmailController extends Controller
             'attachment' => $attachment,
         ]);
 
-        broadcast(new EmailSent($email->load('sender')));  // ← NEW
-
-        return response()->json([
-            'message'  => 'Email added',
-            'chat_id'  => $chat->id,
-        ]);
+        // ── Fire real-time event to recipient ─────────────────────────────────
+        $email->load('sender');
+        broadcast(new NewEmailReceived($email, $chat, $receiver->id))->toOthers();
+ 
+        return response()->json(['message' => 'Email added', 'chat_id' => $chat->id]);
     }
 
     // ── REPLY — add a message to an existing chat ─────────────────────────────
@@ -186,8 +185,11 @@ class EmailController extends Controller
             'attachment' => $attachment,
         ]);
 
-        broadcast(new EmailSent($email->load('sender')));  // ← NEW
-
+        // ── Fire real-time event to the other person in the chat ──────────────
+        $email->load('sender');
+        $recipientId = $chat->user1_id === $user->id ? $chat->user2_id : $chat->user1_id;
+        broadcast(new NewEmailReceived($email, $chat, $recipientId))->toOthers();
+ 
         return response()->json(['message' => 'Reply added', 'attachment' => $attachment]);
     }
 
