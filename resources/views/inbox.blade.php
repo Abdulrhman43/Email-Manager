@@ -2,6 +2,134 @@
 
 @section('content')
 
+@php
+    $avatarColors = [
+        'bg-violet-500',
+        'bg-blue-500',
+        'bg-rose-500',
+        'bg-teal-500',
+        'bg-amber-500',
+        'bg-emerald-500',
+        'bg-pink-500',
+        'bg-indigo-500',
+    ];
+@endphp
+
+{{-- ══════════════════════════════════════════════════
+     MOBILE  (<768px) – Gmail-style full screen
+     DESKTOP (≥768px) – original table layout
+══════════════════════════════════════════════════ --}}
+
+{{-- ─────────────────────────────────────────────────
+     MOBILE LAYOUT
+───────────────────────────────────────────────── --}}
+<div class="flex flex-col h-full md:hidden">
+
+ {{-- Mobile header: title + weather + sign out --}}
+    <div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-100 flex-shrink-0">
+        <div class="flex items-center gap-2">
+            <div id="weatherBoxMobile" class="flex items-center gap-1 text-xs text-slate-400">
+                <span class="opacity-50">–</span>
+            </div>
+        </div>
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit"
+                class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm active:bg-slate-50 transition-all">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign out
+            </button>
+        </form>
+    </div>
+
+    {{-- Search bar --}}
+    <div class="px-3 pt-2 pb-2 flex-shrink-0">
+        <div class="flex items-center gap-2 bg-slate-100 rounded-2xl px-4 py-2.5 shadow-sm">
+            <svg class="text-slate-500 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" id="searchInputMobile" placeholder="Search in messages"
+                class="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
+                oninput="filterTableMobile()">
+        </div>
+    </div>
+    {{-- Email list --}}
+    <div class="flex-1 overflow-y-auto" id="mobileEmailList">
+        @foreach ($emails as $index => $message)
+            @php
+                $avatarColor     = $avatarColors[$index % count($avatarColors)];
+                $isSent          = ($message['type'] ?? 'received') === 'sent';
+                $contactName     = $isSent ? ($message['to']         ?? '') : ($message['from']      ?? '');
+                $contactEmail    = $isSent ? ($message['toEmail']    ?? '') : ($message['fromEmail'] ?? '');
+                $contactInitials = $isSent ? ($message['toInitials'] ?? '') : ($message['fromInitials'] ?? '');
+                $previewBody     = (strlen($message['body']) > 55) ? substr($message['body'], 0, 55) . '…' : $message['body'];
+                $type            = $message['type'] ?? 'received';
+            @endphp
+
+            <div class="mobile-email-row flex items-center gap-3 px-4 py-3 border-b border-slate-100 active:bg-slate-50 cursor-pointer"
+                 data-type="{{ $type }}"
+                 data-subject="{{ strtolower($message['subject']) }}"
+                 data-from="{{ strtolower($contactName) }}"
+                 data-body="{{ strtolower($message['body']) }}"
+                 onclick="handleRowClick(event, '{{ $message['messageId'] }}')"
+                 data-id="{{ $message['messageId'] }}"
+                 data-thread-id="{{ $message['threadId'] }}">
+
+                {{-- Avatar circle --}}
+                <div class="flex-shrink-0">
+                    <div class="w-10 h-10 rounded-full {{ $avatarColor }} flex items-center justify-center text-white text-sm font-semibold select-none">
+                        {{ $contactInitials }}
+                    </div>
+                </div>
+
+                {{-- Content --}}
+                <div class="flex-1 min-w-0">
+                    {{-- Row 1: Name + Time --}}
+                    <div class="flex items-center justify-between mb-0.5">
+                        <span class="text-sm font-semibold text-slate-900 truncate">{{ $contactName }}</span>
+                        <span class="text-xs text-slate-400 flex-shrink-0 ml-2">{{ $message['time'] }}</span>
+                    </div>
+                    {{-- Row 2: Subject --}}
+                    <div class="text-sm font-medium text-slate-700 truncate">{{ $message['subject'] }}</div>
+                    {{-- Row 3: Preview --}}
+                    <div class="text-xs text-slate-400 truncate mt-0.5">
+                        @if($isSent)<span class="text-slate-500">You: </span>@endif{{ $previewBody }}
+                    </div>
+                </div>
+
+            </div>
+        @endforeach
+
+        {{-- Empty state --}}
+        <div id="mobileEmptyState" class="hidden flex-col items-center justify-center py-24 text-slate-400">
+            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24" class="mb-3 opacity-30">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <p class="text-sm">No messages here.</p>
+        </div>
+    </div>
+
+    {{-- Compose FAB (mobile) --}}
+    <button type="button" onclick="openComposeModal()"
+        class="fixed bottom-6 right-5 z-30 flex items-center gap-2 rounded-2xl bg-blue-50 border border-blue-100 px-5 py-3 text-sm font-semibold text-blue-700 shadow-lg active:scale-95 transition-all">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M12 5v14"/><path d="M5 12h14"/>
+        </svg>
+        Compose
+    </button>
+
+</div>
+
+{{-- ─────────────────────────────────────────────────
+     DESKTOP LAYOUT (original, unchanged)
+───────────────────────────────────────────────── --}}
+<div class="hidden md:flex md:flex-col md:h-full">
+
     {{-- Page title --}}
     <div class="flex items-center justify-between px-8 pt-6 pb-2 border-b border-slate-100 flex-shrink-0">
         <div>
@@ -41,20 +169,9 @@
                 </tr>
             </thead>
             <tbody id="emailBody">
-                @php
-                    $avatarColors = [
-                        'bg-violet-100 text-violet-700',
-                        'bg-blue-100 text-blue-700',
-                        'bg-rose-100 text-rose-700',
-                        'bg-teal-100 text-teal-700',
-                        'bg-amber-100 text-amber-700',
-                        'bg-emerald-100 text-emerald-700',
-                    ];
-                @endphp
-
                 @foreach ($emails as $index => $message)
                     @php
-                        $avatarClass     = $avatarColors[$index % count($avatarColors)];
+                        $avatarClass     = ['bg-violet-100 text-violet-700','bg-blue-100 text-blue-700','bg-rose-100 text-rose-700','bg-teal-100 text-teal-700','bg-amber-100 text-amber-700','bg-emerald-100 text-emerald-700'][$index % 6];
                         $isSent          = ($message['type'] ?? 'received') === 'sent';
                         $contactName     = $isSent ? ($message['to']         ?? '') : ($message['from']      ?? '');
                         $contactEmail    = $isSent ? ($message['toEmail']    ?? '') : ($message['fromEmail'] ?? '');
@@ -71,10 +188,8 @@
                         onclick="handleRowClick(event, '{{ $message['messageId'] }}')">
 
                         <td class="px-4 py-4 w-10" onclick="event.stopPropagation()">
-                            <input type="checkbox" class="check-row rounded"
-                                onchange="toggleRow('{{ $message['messageId'] }}', this)">
+                            <input type="checkbox" class="check-row rounded" onchange="toggleRow('{{ $message['messageId'] }}', this)">
                         </td>
-
                         <td class="px-4 py-4 w-40">
                             <div class="flex items-center gap-2">
                                 <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 {{ $avatarClass }}">
@@ -86,7 +201,6 @@
                                 </div>
                             </div>
                         </td>
-
                         <td class="px-4 py-4 flex-1">
                             <div class="font-medium text-slate-800 text-sm truncate mb-1">{{ $message['subject'] }}</div>
                             <div class="text-sm text-slate-600 truncate">
@@ -94,7 +208,6 @@
                                 {{ $previewBody }}
                             </div>
                         </td>
-
                         <td class="px-4 py-4 w-24">
                             <span class="text-xs text-slate-400">{{ $message['time'] }}</span>
                         </td>
@@ -103,7 +216,6 @@
             </tbody>
         </table>
 
-        {{-- Empty state --}}
         <div id="emptyState" class="hidden flex-col items-center justify-center py-24 text-slate-400">
             <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="mb-3 opacity-40">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -113,38 +225,16 @@
         </div>
     </div>
 
-    {{-- Footer bulk bar --}}
-    @include('partials.footer')
+    {{-- Desktop Compose FAB --}}
+    <button type="button" onclick="openComposeModal()"
+        class="fixed bottom-7 right-7 z-30 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-2xl transition hover:-translate-y-0.5 hover:bg-slate-700">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 5v14"/><path d="M5 12h14"/>
+        </svg>
+        Compose
+    </button>
 
-@endsection
-
-@section('scripts')
-
-{{-- Pass data to JS --}}
-<script>
-    window.emailData  = {!! json_encode($emails) !!};
-    window.userEmail  = {!! json_encode(Auth::user()->email) !!};
-    window.uploadsUrl = '{{ asset('uploads') }}/';
-
-    // AJAX URLs — Laravel routes passed to JS
-    window.routes = {
-        read    : '{{ route('emails.read') }}',
-        store   : '{{ route('emails.store') }}',
-        destroy : '{{ url('emails') }}',         // + /{chat}
-        reply   : '{{ url('emails') }}',          // + /{chat}/reply
-        upload  : '{{ route('upload.store') }}',
-        weather : '{{ route('weather.fetch') }}',
-    };
-</script>
-
-{{-- Compose FAB --}}
-<button type="button" onclick="openComposeModal()"
-    class="fixed bottom-7 right-7 z-30 inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-2xl transition hover:-translate-y-0.5 hover:bg-slate-700">
-    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path d="M12 5v14"/><path d="M5 12h14"/>
-    </svg>
-    Compose
-</button>
+</div>
 
 {{-- Compose Modal --}}
 <dialog id="composeDialog" class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-slate-900/45 backdrop:backdrop-blur-sm">
@@ -214,9 +304,7 @@
                     </div>
                 </div>
             </div>
-
             <div id="messageThread" class="max-h-[50vh] space-y-4 overflow-y-auto bg-slate-100/70 px-6 py-5"></div>
-
             <form id="replyForm" class="border-t border-slate-200 bg-white px-6 py-4" onsubmit="sendReply(event)">
                 @csrf
                 <label class="mb-2 block text-sm font-medium text-slate-700">Reply</label>
@@ -241,5 +329,134 @@
         </div>
     </div>
 </dialog>
+
+@endsection
+
+@section('scripts')
+
+<script>
+    window.emailData  = {!! json_encode($emails) !!};
+    window.userEmail  = {!! json_encode(Auth::user()->email) !!};
+    window.uploadsUrl = '{{ asset('uploads') }}/';
+    window.routes = {
+        read    : '{{ route('emails.read') }}',
+        store   : '{{ route('emails.store') }}',
+        destroy : '{{ url('emails') }}',
+        reply   : '{{ url('emails') }}',
+        upload  : '{{ route('upload.store') }}',
+        weather : '{{ route('weather.fetch') }}',
+    };
+
+    /* ── Mobile search filter ── */
+    function filterTableMobile() {
+        const q = document.getElementById('searchInputMobile').value.toLowerCase();
+        document.querySelectorAll('.mobile-email-row').forEach(row => {
+            const hit = !q ||
+                row.dataset.subject.includes(q) ||
+                row.dataset.from.includes(q) ||
+                row.dataset.body.includes(q);
+            row.style.display = hit ? 'flex' : 'none';
+        });
+        checkMobileEmpty();
+    }
+
+    function checkMobileEmpty() {
+        const anyVisible = [...document.querySelectorAll('.mobile-email-row')]
+            .some(r => r.style.display !== 'none');
+        const empty = document.getElementById('mobileEmptyState');
+        if (empty) empty.style.display = anyVisible ? 'none' : 'flex';
+    }
+
+    /* ── Weather: populate both desktop and mobile boxes ── */
+    const origWeatherBox   = document.getElementById('weatherBox');
+    const mobileWeatherBox = document.getElementById('weatherBoxMobile');
+
+    const weatherObserver = new MutationObserver(() => {
+        if (mobileWeatherBox && origWeatherBox) {
+            mobileWeatherBox.innerHTML = origWeatherBox.innerHTML;
+        }
+    });
+    if (origWeatherBox) {
+        weatherObserver.observe(origWeatherBox, { childList: true, subtree: true });
+    }
+
+    {{-- ══════════════════════════════════════════════════
+         REAL-TIME: subscribe to the current user's inbox channel
+    ══════════════════════════════════════════════════ --}}
+    const authId = {{ auth()->id() }};
+
+    // Track which chat is currently open in the modal
+    let activeChatId = null;
+
+    window.Echo.private('App.Models.User.' + authId)
+        .listen('EmailSent', (e) => {
+            // Skip any self-notifications and keep the optimistic UI untouched.
+            if (e.sender_id === authId) return;
+
+            if (String(activeChatId) === String(e.chat_id)) {
+                appendToThread(e);
+            }
+
+            updateInboxPreview(e);
+
+            if (typeof reloadEmails === 'function') {
+                reloadEmails();
+            }
+        });
+
+    /**
+     * Append a new message bubble inside the open conversation modal.
+     * Matches the style your existing thread uses.
+     */
+    function appendToThread(e) {
+        const thread = document.getElementById('messageThread');
+        if (!thread) return;
+
+        const html = `
+            <div class="flex justify-start">
+                <div class="max-w-[70%] rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-500 mb-1">${e.sender_name}</p>
+                    <p class="text-sm text-slate-800 leading-relaxed">${e.message}</p>
+                    <p class="text-xs text-slate-400 mt-1 text-right">${e.created_at}</p>
+                </div>
+            </div>`;
+
+        thread.insertAdjacentHTML('beforeend', html);
+        thread.scrollTop = thread.scrollHeight;
+    }
+
+    /**
+     * Update the inbox list row preview text + time so the sender
+     * sees the conversation move to the top without a page refresh.
+     */
+    function updateInboxPreview(e) {
+        // Desktop row
+        const desktopRow = document.querySelector(`tr[data-thread-id="${e.chat_id}"]`);
+        if (desktopRow) {
+            const bodyCell = desktopRow.querySelector('td:nth-child(4) .text-sm.text-slate-600');
+            if (bodyCell) bodyCell.textContent = e.message.substring(0, 60);
+        }
+
+        // Mobile row
+        const mobileRow = document.querySelector(`.mobile-email-row[data-thread-id="${e.chat_id}"]`);
+        if (mobileRow) {
+            const preview = mobileRow.querySelector('.text-xs.text-slate-400.truncate');
+            if (preview) preview.textContent = e.message.substring(0, 55);
+        }
+    }
+
+    /**
+     * Call this whenever you open a conversation modal so the
+     * real-time listener knows which chat is active.
+     * Add  setActiveChatId(threadId)  inside your handleRowClick function.
+     */
+    function setActiveChatId(chatId) {
+        activeChatId = String(chatId);
+    }
+
+    function clearActiveChatId() {
+        activeChatId = null;
+    }
+</script>
 
 @endsection
