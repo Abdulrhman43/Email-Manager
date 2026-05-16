@@ -229,6 +229,7 @@ function openMessageModal(messageId) {
 
     activeMessageId = String(messageId);
     activeThreadId = message.threadId;
+    setActiveChatId(activeThreadId); // ← FIXED: use threadId not messageId
 
     document.getElementById('messageDialogTitle').textContent = message.subject || 'Message';
 
@@ -246,6 +247,8 @@ function openMessageModal(messageId) {
 }
 
 function closeConversationModal() {
+    clearActiveChatId();
+
     const d = document.getElementById('messageDialog');
     if (d?.open) d.close();
     const rf = document.getElementById('replyFile');

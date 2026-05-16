@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Chat;
 use App\Models\Email;
 use App\Models\User;
+use App\Events\EmailSent;                          // ← NEW
 use App\Http\Requests\StoreEmailRequest;
 use App\Http\Requests\StoreReplyRequest;
 use Illuminate\Http\Request;
@@ -18,13 +19,11 @@ class EmailController extends Controller
         $user    = Auth::user();
         $user_id = $user->id;
 
-        // Get all chats this user is part of, with latest email and both users
         $chats = Chat::with(['user1', 'user2', 'emails.sender'])
             ->where('user1_id', $user_id)
             ->orWhere('user2_id', $user_id)
             ->get();
 
-        // Build the same $emails array structure the Blade view expects
         $emails = [];
 
         foreach ($chats as $chat) {
@@ -62,7 +61,6 @@ class EmailController extends Controller
             ];
         }
 
-        // Sort by most recent first
         usort($emails, fn($a, $b) => strcmp($b['time'], $a['time']));
 
         return view('inbox', compact('emails', 'user'));
@@ -128,7 +126,6 @@ class EmailController extends Controller
         $receiver   = User::where('email', $request->composeEmail)->first();
         $attachment = null;
 
-        // Handle file upload or already-uploaded filename
         if ($request->hasFile('attachment')) {
             $file       = $request->file('attachment');
             $filename   = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
@@ -138,20 +135,20 @@ class EmailController extends Controller
             $attachment = $request->attachment;
         }
 
-        // Create chat
         $chat = Chat::create([
             'user1_id' => $user->id,
             'user2_id' => $receiver->id,
         ]);
 
-        // Create email
-        Email::create([
+        $email = Email::create([                   // ← was: Email::create(
             'chat_id'    => $chat->id,
             'sender_id'  => $user->id,
             'subject'    => $request->composeSubject,
             'message'    => $request->composeBody,
             'attachment' => $attachment,
         ]);
+
+        broadcast(new EmailSent($email->load('sender')));  // ← NEW
 
         return response()->json([
             'message'  => 'Email added',
@@ -164,14 +161,12 @@ class EmailController extends Controller
     {
         $user = Auth::user();
 
-        // Make sure the user is part of this chat
         if ($chat->user1_id !== $user->id && $chat->user2_id !== $user->id) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
         $attachment = null;
 
-        // Handle file upload or already-uploaded filename
         if ($request->hasFile('attachment')) {
             $file       = $request->file('attachment');
             $filename   = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
@@ -181,10 +176,9 @@ class EmailController extends Controller
             $attachment = $request->attachment;
         }
 
-        // Get subject from first email in chat
         $subject = $chat->emails()->first()->subject ?? '';
 
-        Email::create([
+        $email = Email::create([                   // ← was: Email::create(
             'chat_id'    => $chat->id,
             'sender_id'  => $user->id,
             'subject'    => $subject,
@@ -192,51 +186,53 @@ class EmailController extends Controller
             'attachment' => $attachment,
         ]);
 
+        broadcast(new EmailSent($email->load('sender')));  // ← NEW
+
         return response()->json(['message' => 'Reply added', 'attachment' => $attachment]);
     }
 
+    // ── UPLOAD ────────────────────────────────────────────────────────────────
     public function upload(Request $request)
-{
-    $request->validate([
-        'attachment' => ['required', 'file', 'mimes:jpg,jpeg,png,gif,pdf', 'max:5120'],
-    ]);
-
-    try {
-        $file     = $request->file('attachment');
-        $filename = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
-
-        $uploadPath = public_path('uploads');
-        if (!file_exists($uploadPath)) {
-            mkdir($uploadPath, 0755, true);
-        }
-
-        $file->move($uploadPath, $filename);
-
-        return response()->json([
-            'success'  => true,
-            'filename' => $filename,
+    {
+        $request->validate([
+            'attachment' => ['required', 'file', 'mimes:jpg,jpeg,png,gif,pdf', 'max:5120'],
         ]);
 
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'error'   => $e->getMessage(),  // ← now you'll see the real error
-        ], 500);
+        try {
+            $file     = $request->file('attachment');
+            $filename = bin2hex(random_bytes(16)) . '.' . $file->getClientOriginalExtension();
+
+            $uploadPath = public_path('uploads');
+            if (!file_exists($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+
+            $file->move($uploadPath, $filename);
+
+            return response()->json([
+                'success'  => true,
+                'filename' => $filename,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     // ── DESTROY — delete a chat and all its emails ────────────────────────────
     public function destroy(Chat $chat)
     {
         $user = Auth::user();
 
-        // Make sure the user is part of this chat
         if ($chat->user1_id !== $user->id && $chat->user2_id !== $user->id) {
             return response()->json(['message' => 'Access denied'], 403);
         }
 
         $count = $chat->emails()->count();
-        $chat->delete(); // cascades to emails via FK
+        $chat->delete();
 
         return response()->json(['message' => "Deleted $count messages and associated chats"]);
     }
